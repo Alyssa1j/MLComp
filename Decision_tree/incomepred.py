@@ -27,16 +27,3 @@ def train_Income():
 
 root=train_Income()
 id3.printTree(root)
-# 
-#test_data = pd.read_csv("MLComp/Decision_tree/data/small_test.csv")
-#r,_ =test_data.shape
-
-#result_df = pd.DataFrame(index=range(r),columns=range(2))
-#result_df.columns = ["ID", "Prediction"]
-#result_df["ID"] = test_data["ID"]
-#result_df["Prediction"].iat[0] = 20
-#result_df.to_csv('result_file.csv', index=False)
-
-#if all values in the median threshold are the same,
-#splitting and then subtracting the threshold will result in 0 gain, so keep the original gain.
-#otherwise perfectly even data 

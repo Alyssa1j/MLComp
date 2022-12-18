@@ -77,11 +77,8 @@ def generateLeaf(u,answer,result,subdata, label_yes, label_no, depth):
     newNode.isLeaf = True
     newNode.value = (u,answer)   
     newNode.pred = np.unique(subdata[answer])
-  #  print("Before check ",newNode.value, newNode.pred)
-  #  print(subdata)
-    if(any(p in newNode.pred for p in label_no) and any(p in newNode.pred for p in label_yes)):
-        newNode.pred = subdata[answer].value_counts().idxmax()
-   #     print("after check: ",newNode.value, newNode.pred)
+    if(len(newNode.pred) >=1):
+        newNode.pred = newNode.pred[0]
     newNode.entropy = result
     newNode.level = depth-1  
     return newNode
@@ -135,26 +132,36 @@ def predict_data(root,dataset,features,rdf):
 def prediction_result(i, root, data_row, features):
     if root.isLeaf:
         if((root.pos + root.neg) != 0):
+            print("-->Percentage Pred: ", root.pos/(root.pos + root.neg))
             return root.pos/(root.pos + root.neg)
                 
         else:
+            print("-->Solid Pred: ", root.pred)
             return root.pred
     else:
+        group = None
+        num = False
+        print("Parent: ", root.value[0])
         for c in root.children:
-            #compare values then pick the path that fits.
-            #check for integer types
-        #    print("values: ",c.value[0], root.value[0])
-         #   print(len(data_row))
-          #  print(data_row)
-            #print(i, " -->", data_row[features[root.value[0]]])
-            if(type(data_row[features[root.value[0]]]) is np.int64):
-               # print("I am an integer")
+            print("     Child C: ",c.value[0]," ",c.value[1])
+            if c.value[0] =="cluster grouping":
+                group = c
+            if(type(data_row[features[root.value[0]]]) is int):
+                print("I am an integer")
+                if(num):
+                    print("     using num")
+
+                    if(c.isLeaf):
+                        return prediction_result(i,c, data_row, features)
+                    else:
+                        return prediction_result(i,c.children[0], data_row, features)
                 if(c.value[0] <= data_row[features[root.value[0]]]):
                     if(c.isLeaf):
                         return prediction_result(i,c, data_row, features)
                     else:
                         return prediction_result(i,c.children[0], data_row, features)
-
+                else:
+                    num = True
             if(c.value[0] == data_row[features[root.value[0]]]):
                 if(c.isLeaf):
                     return prediction_result(i,c, data_row, features)
@@ -162,8 +169,22 @@ def prediction_result(i, root, data_row, features):
                     return prediction_result(i,c.children[0], data_row, features)
             else:
                 continue
+        
+        #try a cluster grouping value
+        if(group != None and group.isLeaf):
+            print("Cluster Result")
+            return prediction_result(i,group, data_row, features)
+        else:
+            #branch all and average result
+            total = len(root.children)
+            val =0
+            for c in root.children:
+                if(c.isLeaf):
+                    val += prediction_result(i,c, data_row, features)
+                else:
+                    val += prediction_result(i,c.children[0], data_row, features)
+            return val/total
 
-    return 0
 
 def prediction(root, data_row, features,label_yes,label):
     if root.isLeaf:
