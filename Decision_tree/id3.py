@@ -39,8 +39,8 @@ def ID3(data, attrs, label_yes, label_no,answer, depth=6):
         root.level=depth
         root.infogain = max_gain
         return root
-    if(weight):
-        print("Max feature was fnlwgt")
+#    if(weight):
+ #       print("Max feature was fnlwgt")
     root.value = (max_feat, attrs[max_feat])
     root.level=depth
     root.infogain = gain
@@ -108,6 +108,17 @@ def expandTree(u,subdata,attrs,max_feat,answer, label_yes, label_no, depth):
     dummyNode = tree.Node()
     dummyNode.value = (u, attrs[max_feat])
     #print(dummyNode.value)
+    #calculate current prediction value
+    pos = subdata[subdata[answer] == 1]
+    neg = subdata[subdata[answer] == 0]
+    fnlwgtPos = pos[2]
+    fnlwgtNeg = neg[2]
+    dummyNode.fnlwgtPos = fnlwgtPos.sum()
+    dummyNode.fnlwgtNeg= fnlwgtNeg.sum()
+    if((dummyNode.fnlwgtPos + dummyNode.fnlwgtNeg) != 0):
+           # print("-->Percentage Pred: ", root.pos/(root.pos + root.neg))
+            dummyNode.pred= dummyNode.fnlwgtPos/(dummyNode.fnlwgtPos + dummyNode.fnlwgtNeg)
+    
     dummyNode.level=depth-1
     new_attrs = attrs.copy()
     new_attrs.pop(max_feat)      
@@ -153,38 +164,31 @@ def predict_data(root,dataset,features,rdf):
 def prediction_result(i, root, data_row, features):
     if root.isLeaf:
         if((root.fnlwgtPos + root.fnlwgtNeg) != 0):
-           # print("-->Percentage Pred: ", root.pos/(root.pos + root.neg))
             return root.fnlwgtPos/(root.fnlwgtPos + root.fnlwgtNeg)
-                
         else:
-           # print("-->Solid Pred: ", root.pred)
             return root.pred
     else:
         num = False
-        #print("Parent: ", root.value[0])
+        rootPred = (root.fnlwgtPos/(root.fnlwgtPos + root.fnlwgtNeg) if ((root.fnlwgtPos + root.fnlwgtNeg) != 0) else 0.0)
         for c in root.children:
-          #  print("     Child C: ",c.value[0]," ",c.value[1])
             if(type(data_row[features[root.value[0]]]) is int):
-            #    print("I am an integer")
                 if(num):
-              #      print("     using num")
-
                     if(c.isLeaf):
-                        return prediction_result(i,c, data_row, features)
+                        return prediction_result(i,c, data_row, features) + (rootPred/(101-c.level))
                     else:
-                        return prediction_result(i,c.children[0], data_row, features)
+                        return prediction_result(i,c.children[0], data_row, features)+ (rootPred/(101-c.level))
                 if(c.value[0] <= data_row[features[root.value[0]]]):
                     if(c.isLeaf):
-                        return prediction_result(i,c, data_row, features)
+                        return prediction_result(i,c, data_row, features)+ (rootPred/(101-c.level))
                     else:
-                        return prediction_result(i,c.children[0], data_row, features)
+                        return prediction_result(i,c.children[0], data_row, features)+ (rootPred/(101-c.level))
                 else:
                     num = True
             if(c.value[0] == data_row[features[root.value[0]]]):
                 if(c.isLeaf):
-                    return prediction_result(i,c, data_row, features)
+                    return prediction_result(i,c, data_row, features)+ (rootPred/(101-c.level))
                 else:
-                    return prediction_result(i,c.children[0], data_row, features)
+                    return prediction_result(i,c.children[0], data_row, features)+ (rootPred/(101-c.level))
             else:
                 continue
         
@@ -193,9 +197,9 @@ def prediction_result(i, root, data_row, features):
         val =0
         for c in root.children:
             if(c.isLeaf):
-                val += prediction_result(i,c, data_row, features)
+                val += prediction_result(i,c, data_row, features)+ (rootPred/(101-c.level))
             else:
-                val += prediction_result(i,c.children[0], data_row, features)
+                val += prediction_result(i,c.children[0], data_row, features)+ (rootPred/(101-c.level))
         return val/total
 
 
