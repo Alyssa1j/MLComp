@@ -10,12 +10,16 @@ def ID3(data, attrs, label_yes, label_no,answer, depth=6):
 
     max_gain = 0
     max_feat = ""
+    weight = False
     for feature in attrs:
         gain = m.info_gain(data, attrs[feature], label_yes, answer)
 
         if gain > max_gain:
-            max_gain = gain
-            max_feat = feature
+            if(feature == "fnlwgt"):
+                weight = True
+            else:
+                max_gain = gain
+                max_feat = feature
             #print(max_feat)
     
     if(max_gain == 0):
@@ -25,14 +29,24 @@ def ID3(data, attrs, label_yes, label_no,answer, depth=6):
         root.pos = data[answer].value_counts()[1]
         root.neg =data[answer].value_counts()[0]
         root.pred = data[answer].value_counts().idxmax()
+        
+        pos = data[data[answer] == 1]
+        neg = data[data[answer] == 0]
+        fnlwgtPos = pos[attrs["fnlwgt"]]
+        fnlwgtNeg = neg[attrs["fnlwgt"]]
+        root.fnlwgtPos = fnlwgtPos.sum()
+        root.fnlwgtNeg= fnlwgtNeg.sum()
         root.level=depth
         root.infogain = max_gain
         return root
+    if(weight):
+        print("Max feature was fnlwgt")
     root.value = (max_feat, attrs[max_feat])
     root.level=depth
     root.infogain = gain
     if(type(data[attrs[max_feat]].iat[0]) is np.int64):
     #    print("int: ",examples[attr][0])
+    #    print("Int Feature:",max_feat)
         threshold = np.median(data[attrs[max_feat]])
         subdata = data[data[attrs[max_feat]] <= threshold]
         subdata2 = data[data[attrs[max_feat]] > threshold]
@@ -76,9 +90,16 @@ def generateLeaf(u,answer,result,subdata, label_yes, label_no, depth):
     newNode = tree.Node()
     newNode.isLeaf = True
     newNode.value = (u,answer)   
-    newNode.pred = np.unique(subdata[answer])
-    if(len(newNode.pred) >=1):
-        newNode.pred = newNode.pred[0]
+
+    pos = subdata[subdata[answer] == 1]
+    neg = subdata[subdata[answer] == 0]
+    fnlwgtPos = pos[2]
+    fnlwgtNeg = neg[2]
+    newNode.fnlwgtPos = fnlwgtPos.sum()
+    newNode.fnlwgtNeg= fnlwgtNeg.sum()
+    if((newNode.fnlwgtPos + newNode.fnlwgtNeg) != 0):
+           # print("-->Percentage Pred: ", root.pos/(root.pos + root.neg))
+            newNode.pred= newNode.fnlwgtPos/(newNode.fnlwgtPos + newNode.fnlwgtNeg)
     newNode.entropy = result
     newNode.level = depth-1  
     return newNode
@@ -101,8 +122,8 @@ def printTree(root, depth=0):
             return
         print(root.value,root.level, end="")
         if root.isLeaf:
-            if((root.pos + root.neg) != 0):
-                auc=root.pos/(root.pos + root.neg)
+            if((root.fnlwgtPos + root.fnlwgtNeg) != 0):
+                auc=root.fnlwgtPos/(root.fnlwgtPos + root.fnlwgtNeg)
                 print(" -> ", root.pred, "Percentage: ", auc)
             else:
                 print(" -> ", root.pred)
@@ -131,25 +152,22 @@ def predict_data(root,dataset,features,rdf):
 
 def prediction_result(i, root, data_row, features):
     if root.isLeaf:
-        if((root.pos + root.neg) != 0):
-            print("-->Percentage Pred: ", root.pos/(root.pos + root.neg))
-            return root.pos/(root.pos + root.neg)
+        if((root.fnlwgtPos + root.fnlwgtNeg) != 0):
+           # print("-->Percentage Pred: ", root.pos/(root.pos + root.neg))
+            return root.fnlwgtPos/(root.fnlwgtPos + root.fnlwgtNeg)
                 
         else:
-            print("-->Solid Pred: ", root.pred)
+           # print("-->Solid Pred: ", root.pred)
             return root.pred
     else:
-        group = None
         num = False
-        print("Parent: ", root.value[0])
+        #print("Parent: ", root.value[0])
         for c in root.children:
-            print("     Child C: ",c.value[0]," ",c.value[1])
-            if c.value[0] =="cluster grouping":
-                group = c
+          #  print("     Child C: ",c.value[0]," ",c.value[1])
             if(type(data_row[features[root.value[0]]]) is int):
-                print("I am an integer")
+            #    print("I am an integer")
                 if(num):
-                    print("     using num")
+              #      print("     using num")
 
                     if(c.isLeaf):
                         return prediction_result(i,c, data_row, features)
@@ -170,20 +188,15 @@ def prediction_result(i, root, data_row, features):
             else:
                 continue
         
-        #try a cluster grouping value
-        if(group != None and group.isLeaf):
-            print("Cluster Result")
-            return prediction_result(i,group, data_row, features)
-        else:
             #branch all and average result
-            total = len(root.children)
-            val =0
-            for c in root.children:
-                if(c.isLeaf):
-                    val += prediction_result(i,c, data_row, features)
-                else:
-                    val += prediction_result(i,c.children[0], data_row, features)
-            return val/total
+        total = len(root.children)
+        val =0
+        for c in root.children:
+            if(c.isLeaf):
+                val += prediction_result(i,c, data_row, features)
+            else:
+                val += prediction_result(i,c.children[0], data_row, features)
+        return val/total
 
 
 def prediction(root, data_row, features,label_yes,label):

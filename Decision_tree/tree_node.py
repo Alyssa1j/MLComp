@@ -9,6 +9,9 @@ class Node:
         self.level=0
         self.pos =0
         self.neg =0
+        self.fnlwgtPos =0
+        self.fnlwgtNeg =0
+        
 
     
 

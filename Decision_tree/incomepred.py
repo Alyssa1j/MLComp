@@ -10,11 +10,14 @@ def train_Income():
     label_no = [0]
 
     income_data = pd.read_csv("MLComp/Decision_tree/data/train_final.csv", header=None)
+    #income_data = pd.read_csv("MLComp/Decision_tree/data/small_test.csv", header=None)
    # print(len(income_data.index))
    # print(income_data.iloc[0])
     income_root = id3.ID3(income_data, features, label_yes, label_no, 14,100)
     #id3.printTree(income_root)
     test_data = pd.read_csv("MLComp/Decision_tree/data/test_final.csv")
+    
+   # test_data = pd.read_csv("MLComp/Decision_tree/data/smalltest.csv")
     r,_ =test_data.shape
 
     result_df = pd.DataFrame(index=range(r),columns=range(2))
@@ -27,3 +30,4 @@ def train_Income():
 
 root=train_Income()
 id3.printTree(root)
+ 
