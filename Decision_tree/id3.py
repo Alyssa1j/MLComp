@@ -98,7 +98,7 @@ def generateLeaf(u,answer,result,subdata, label_yes, label_no, depth):
     newNode.fnlwgtPos = fnlwgtPos.sum()
     newNode.fnlwgtNeg= fnlwgtNeg.sum()
     if((newNode.fnlwgtPos + newNode.fnlwgtNeg) != 0):
-           # print("-->Percentage Pred: ", root.pos/(root.pos + root.neg))
+           # print("-->Percentage Pred: ", newNode.pred)
             newNode.pred= newNode.fnlwgtPos/(newNode.fnlwgtPos + newNode.fnlwgtNeg)
     newNode.entropy = result
     newNode.level = depth-1  
@@ -115,10 +115,13 @@ def expandTree(u,subdata,attrs,max_feat,answer, label_yes, label_no, depth):
     fnlwgtNeg = neg[2]
     dummyNode.fnlwgtPos = fnlwgtPos.sum()
     dummyNode.fnlwgtNeg= fnlwgtNeg.sum()
+    #print("DummyNodePos: ",dummyNode.fnlwgtPos)
+    #print("dummyNode.fnlwgtNeg: ",dummyNode.fnlwgtNeg)
+
     if((dummyNode.fnlwgtPos + dummyNode.fnlwgtNeg) != 0):
-           # print("-->Percentage Pred: ", root.pos/(root.pos + root.neg))
             dummyNode.pred= dummyNode.fnlwgtPos/(dummyNode.fnlwgtPos + dummyNode.fnlwgtNeg)
-    
+        #    print("-->Percentage Pred: ", dummyNode.pred)
+
     dummyNode.level=depth-1
     new_attrs = attrs.copy()
     new_attrs.pop(max_feat)      
@@ -164,31 +167,35 @@ def predict_data(root,dataset,features,rdf):
 def prediction_result(i, root, data_row, features):
     if root.isLeaf:
         if((root.fnlwgtPos + root.fnlwgtNeg) != 0):
-            return root.fnlwgtPos/(root.fnlwgtPos + root.fnlwgtNeg)
+            return root.fnlwgtPos/(root.fnlwgtPos + root.fnlwgtNeg) / (101-root.level)
         else:
             return root.pred
     else:
         num = False
-        rootPred = (root.fnlwgtPos/(root.fnlwgtPos + root.fnlwgtNeg) if ((root.fnlwgtPos + root.fnlwgtNeg) != 0) else 0.0)
+        rootPred =0
+        if((root.fnlwgtPos + root.fnlwgtNeg) != 0):
+            rootPred= root.fnlwgtPos/(root.fnlwgtPos + root.fnlwgtNeg)
+        if(rootPred == 0):
+            print("No Root Pred")
         for c in root.children:
             if(type(data_row[features[root.value[0]]]) is int):
                 if(num):
                     if(c.isLeaf):
-                        return prediction_result(i,c, data_row, features) + (rootPred/(101-c.level))
+                        return prediction_result(i,c, data_row, features) + rootPred
                     else:
-                        return prediction_result(i,c.children[0], data_row, features)+ (rootPred/(101-c.level))
+                        return prediction_result(i,c.children[0], data_row, features)+ rootPred
                 if(c.value[0] <= data_row[features[root.value[0]]]):
                     if(c.isLeaf):
-                        return prediction_result(i,c, data_row, features)+ (rootPred/(101-c.level))
+                        return prediction_result(i,c, data_row, features) + rootPred
                     else:
-                        return prediction_result(i,c.children[0], data_row, features)+ (rootPred/(101-c.level))
+                        return prediction_result(i,c.children[0], data_row, features)+ rootPred
                 else:
                     num = True
             if(c.value[0] == data_row[features[root.value[0]]]):
                 if(c.isLeaf):
-                    return prediction_result(i,c, data_row, features)+ (rootPred/(101-c.level))
+                    return prediction_result(i,c, data_row, features)+ rootPred
                 else:
-                    return prediction_result(i,c.children[0], data_row, features)+ (rootPred/(101-c.level))
+                    return prediction_result(i,c.children[0], data_row, features)+ rootPred
             else:
                 continue
         
@@ -197,9 +204,9 @@ def prediction_result(i, root, data_row, features):
         val =0
         for c in root.children:
             if(c.isLeaf):
-                val += prediction_result(i,c, data_row, features)+ (rootPred/(101-c.level))
+                val += prediction_result(i,c, data_row, features)+ rootPred
             else:
-                val += prediction_result(i,c.children[0], data_row, features)+ (rootPred/(101-c.level))
+                val += prediction_result(i,c.children[0], data_row, features)+ rootPred
         return val/total
 
 
